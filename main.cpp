@@ -16,6 +16,7 @@ typedef struct individual_s {
     uint8_t queensPosition[BOARD_SIZE];
 } individual;
 
+const uint16_t targetFitness = ((BOARD_SIZE - 1) * (BOARD_SIZE - 2)) / 2;
 
 // Copied from HIP bit_extrack sample
 #define CHECK(cmd)                                                                                 \
@@ -40,7 +41,6 @@ void initPopulation(individual *population, uint16_t populationSize) {
         for(uint8_t rowIndex = 0; rowIndex < BOARD_SIZE; rowIndex++) {
             // A queen can show up anywhere on the row from index 0 up to the size of the board
             uint8_t randomQueenIndex = rand() % BOARD_SIZE;
-            cout << randomQueenIndex << endl;
             population[individualIndex].queensPosition[rowIndex] = randomQueenIndex;
             population[individualIndex].fitness = 0;
         }
@@ -92,6 +92,41 @@ void calculateFitness(individual *population, uint16_t populationSize) {
 }
 
 /**
+ * Handles running the reproduction on the population. Assumes that the more fit
+ * individuals are towards the start of the array and the less fit towards the end.
+ * Once reproduction takes place, the population is updated with the next
+ * generation. Currently the top 50% get to reproduce, this can be improved.
+ * 
+ * @param population The individuals to run reproduction on. Will be replaced with the next generation.
+ * @param populationSize The number of individuals in the population.
+ */
+void reproduction(individual *population, uint16_t populationSize) {
+    individual nextGen[populationSize];
+
+    for(int i = 0; i < populationSize; i++) {
+        // Use elitist approach of simply having the top 50% reproduce
+        individual firstParent = population[rand() % (populationSize / 2)];
+        individual secondParent = population[rand() % (populationSize / 2)];
+
+        individual child;
+        for(int j = 0; j < BOARD_SIZE; j++) {
+            if(rand() % 2) {
+                child.queensPosition[j] = firstParent.queensPosition[j];
+            } else {
+                child.queensPosition[j] = secondParent.queensPosition[j];
+            }
+        }
+
+        // Random mutation chance
+        if(rand() % 100 <= 5) {
+            child.queensPosition[rand() % BOARD_SIZE] = rand() % BOARD_SIZE;
+        }
+        nextGen[i] = child;
+    }
+    memcpy(population, nextGen, sizeof(individual) * populationSize);
+}
+
+/**
  * Used to compare and sort individuals in decenting order based on fitness
  */
 bool compareIndividuals(individual first, individual second) {
@@ -105,8 +140,6 @@ int main() {
     uint16_t populationSize = 100;
     // Maximum number of generations to go through before ending
     uint16_t maxGenerations = 200;
-
-    const uint16_t targetFitness = ((BOARD_SIZE - 1) * (BOARD_SIZE - 2)) / 2;
 
     // Initialize randomization
     srand(time(NULL));
@@ -129,12 +162,21 @@ int main() {
         sort(h_population, h_population + populationSize, compareIndividuals);
 
         // Display the current highest fitness
-        cout << h_population[0].fitness << endl;
-        //cout << h_population[0].queensPosition[0] << endl;
+        cout << "Generation: " << populationId << " best fitness: " << h_population[0].fitness << " target: " << targetFitness << endl;
 
         // Check to see if the end condition has been reached
+        if(h_population[0].fitness >= targetFitness) {
+            cout << "Ideal combination found!" << endl;
+            cout << "Row by row, the queen should be located at the following columns" << endl;
+            for(int i = 0; i < BOARD_SIZE; i++) {
+                cout << +h_population[0].queensPosition[i] << " ";
+            }
+            cout << endl;
+            break;
+        }
 
         // Run through reproduction
+        reproduction(h_population, populationSize);
     }
 
     return 0;
