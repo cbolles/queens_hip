@@ -2,21 +2,30 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include "hip/hip_runtime.h"
+#include <hip/hip_runtime.h>
+
+#define BLOCK_SIZE 512
+#define THREADS_PER_BLOCK 256
+#define BOARD_SIZE 8
+
+typedef struct individual_s {
+    uint16_t fitness;
+    uint8_t queensPosition[BOARD_SIZE];
+} individual;
 
 /**
  * Handles initializing the population with random locations for the queens. 
  *
  * @param population The representation of the solutions to populate with random values
  * @param populationSize The number of individuals in the population
- * @param boardSize The square dimension of the board
  */
-void initPopulation(uint8_t **population, uint16_t populationSize, uint8_t boardSize) {
+void initPopulation(individual *population, uint16_t populationSize) {
     for(uint16_t individualIndex = 0; individualIndex < populationSize; individualIndex++) {
-        for(uint8_t rowIndex = 0; rowIndex < boardSize; rowIndex++) {
+        for(uint8_t rowIndex = 0; rowIndex < BOARD_SIZE; rowIndex++) {
             // A queen can show up anywhere on the row from index 0 up to the size of the board
-            uint8_t randomQueenIndex = rand() % boardSize;
-            population[individualIndex][rowIndex] = randomQueenIndex;
+            uint8_t randomQueenIndex = rand() % BOARD_SIZE;
+            population[individualIndex].queensPosition[rowIndex] = randomQueenIndex;
+            population[individualIndex].fitness = 0;
         }
     }
 }
@@ -27,29 +36,27 @@ void initPopulation(uint8_t **population, uint16_t populationSize, uint8_t board
  * 1...(n-1) = (n - 1)(n - 2)/2
  *
  * @param population The individuals to calculate the fitness for
- * @param fitness The array to store the fitness values into
  * @param populationSize The number of individuals
- * @param boardSize The size of the board
  */
 __global__
-void calculateFitness(uint8_t **population, uint8_t *fitness, uint16_t populationSize, uint8_t boardSize) {
+void calculateFitness(individual *population, uint16_t populationSize) {
     // Determine the individual to calculate the fitness for
     size_t individualIndex = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
 
     // Make sure we are within the bounds of the population count
     if(individualIndex >= populationSize) { return; }
 
-    uint8_t *individual = population[individualIndex];
+    individual ind = population[individualIndex];
     // Assume max fitness, then decrease fitness based on collisions
-    uint16_t fitness = ((boardSize - 1) * (boardSize - 2)) / 2;
+    uint16_t fitness = ((BOARD_SIZE - 1) * (BOARD_SIZE - 2)) / 2;
     #pragma unroll
-    for(int rowIndex = 0; rowIndex < boardSize; rowIndex++) {
-        uint8_t queenPosition = individual[rowIndex];
+    for(int rowIndex = 0; rowIndex < BOARD_SIZE; rowIndex++) {
+        uint8_t queenPosition = ind.queensPosition[rowIndex];
 
         // Check each other queen location and check for a collision
         #pragma unroll
-        for(int positionCheck = rowIndex + 1; positionCheck < boardSize - 1; positionCheck++) {
-            uint8_t otherQueenPosition = individual[positionCheck];
+        for(int positionCheck = rowIndex + 1; positionCheck < BOARD_SIZE - 1; positionCheck++) {
+            uint8_t otherQueenPosition = ind.queensPosition[positionCheck];
 
             // If the queens are in the same column, that is a collision
             if(queenPosition == otherQueenPosition) {
@@ -62,15 +69,13 @@ void calculateFitness(uint8_t **population, uint8_t *fitness, uint16_t populatio
             }
         }
         // Update fitness
-        fitness[individualIndex] = fitness;
+        ind.fitness = fitness;
     }
 }
 
 int main() {
-    // Number of rows that the chess board will be
-    uint8_t boardSize = 5;
     // Size of the population during each generation
-    uint16_t h_populationSize = 100;
+    uint16_t populationSize = 100;
     // Maximum number of generations to go through before ending
     uint16_t maxGenerations = 200;
 
@@ -78,17 +83,19 @@ int main() {
     srand(time(NULL));
 
     // Initialize the popultation with initially random data
-    uint8_t **h_population = calloc(h_populationSize, sizeof(uint8_t) * boardSize);
-    uint8_t *h_fitness = calloc(h_popultationSize, sizeof(uint16_t));
+    individual *h_population = static_cast<individual*>(calloc(populationSize, sizeof(individual)));
 
     // Initialize device variables
-    uint8_t **d_population = hipMalloc(h_popultationSize * sizeof(uint8_t) * boardSize);
-    uint8_t *h_fitness = hipMalloc(h_popultationSize * sizeof(uint16_t));
+    individual *d_population;
+    hipMalloc(&d_population, populationSize * sizeof(individual));
 
     for(uint16_t populationId = 0; populationId < maxGenerations; populationId++) {
         // Calculate the fitness of the population
+        hipMemcpy(d_population, h_population, populationSize * sizeof(individual), hipMemcpyHostToDevice);
+        hipLaunchKernelGGL(calculateFitness, dim3(BLOCK_SIZE), dim3(THREADS_PER_BLOCK), 0, 0, d_population, populationSize);
          
         // Sort the population based on fitness
+
         
         // Display the current highest fitness
 
