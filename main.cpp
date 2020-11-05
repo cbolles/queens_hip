@@ -7,7 +7,7 @@
 
 #define BLOCK_SIZE 512
 #define THREADS_PER_BLOCK 256
-#define BOARD_SIZE 8
+#define BOARD_SIZE 5
 
 using namespace std;
 
@@ -16,7 +16,7 @@ typedef struct individual_s {
     uint8_t queensPosition[BOARD_SIZE];
 } individual;
 
-const uint16_t targetFitness = ((BOARD_SIZE - 1) * (BOARD_SIZE - 2)) / 2;
+const uint16_t targetFitness = ((BOARD_SIZE) * (BOARD_SIZE - 1)) / 2;
 
 // Copied from HIP bit_extrack sample
 #define CHECK(cmd)                                                                                 \
@@ -137,9 +137,9 @@ int main() {
     cout << "Being N-Queens Solver" << endl;
 
     // Size of the population during each generation
-    uint16_t populationSize = 100;
+    uint16_t populationSize = 1000;
     // Maximum number of generations to go through before ending
-    uint16_t maxGenerations = 200;
+    uint16_t maxGenerations = 1000;
 
     // Initialize randomization
     srand(time(NULL));
@@ -178,6 +178,10 @@ int main() {
         // Run through reproduction
         reproduction(h_population, populationSize);
     }
+
+    // Free unused variables
+    free(h_population);
+    hipFree(d_population);
 
     return 0;
 }
