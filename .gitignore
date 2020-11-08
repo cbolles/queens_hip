@@ -1,6 +1,7 @@
 # Output
 *.out
 test.cpp
+build/
 
 # IDEs
 .vscode/

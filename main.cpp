@@ -180,7 +180,7 @@ int main() {
         cout << "Could not find ideal combination" << endl;
     }
 
-    // Print out the location to place the queens
+    // Print out the location to place the queens regardless of if it is the ideal configuration
     for(int i = 0; i < BOARD_SIZE; i++) {
         cout << +h_population[0].queensPosition[i] << " ";
     }
