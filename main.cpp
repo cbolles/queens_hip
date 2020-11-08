@@ -7,7 +7,7 @@
 
 #define BLOCK_SIZE 512
 #define THREADS_PER_BLOCK 256
-#define BOARD_SIZE 5
+#define BOARD_SIZE 200
 
 using namespace std;
 
@@ -64,9 +64,8 @@ void calculateFitness(individual *population, uint16_t populationSize) {
     // Make sure we are within the bounds of the population count
     if(individualIndex >= populationSize) { return; }
 
-    individual ind = population[individualIndex];
     // Assume max fitness, then decrease fitness based on collisions
-    uint16_t fitness = ((BOARD_SIZE - 1) * (BOARD_SIZE - 2)) / 2;
+    uint16_t fitness = targetFitness;
     #pragma unroll
     for(int rowIndex = 0; rowIndex < BOARD_SIZE; rowIndex++) {
         uint8_t queenPosition = population[individualIndex].queensPosition[rowIndex];
@@ -109,12 +108,11 @@ void reproduction(individual *population, uint16_t populationSize) {
         individual secondParent = population[rand() % (populationSize / 2)];
 
         individual child;
-        for(int j = 0; j < BOARD_SIZE; j++) {
-            if(rand() % 2) {
-                child.queensPosition[j] = firstParent.queensPosition[j];
-            } else {
-                child.queensPosition[j] = secondParent.queensPosition[j];
-            }
+        // Top half from parent 1, bottom half from parent 2
+        int midPoint = BOARD_SIZE / 2;
+        for(int j = 0; j < midPoint; j++) {
+            child.queensPosition[j] = firstParent.queensPosition[j];
+            child.queensPosition[j + midPoint] = secondParent.queensPosition[j + midPoint];
         }
 
         // Random mutation chance
@@ -123,6 +121,8 @@ void reproduction(individual *population, uint16_t populationSize) {
         }
         nextGen[i] = child;
     }
+
+    // Copy over the next generation into the current generation
     memcpy(population, nextGen, sizeof(individual) * populationSize);
 }
 
@@ -152,7 +152,7 @@ int main() {
     individual *d_population;
     CHECK(hipMalloc(&d_population, populationSize * sizeof(individual)));
 
-    for(uint16_t populationId = 0; populationId < maxGenerations; populationId++) {
+    for(uint16_t populationId = 0; 1; populationId++) {
         // Calculate the fitness of the population
         CHECK(hipMemcpy(d_population, h_population, populationSize * sizeof(individual), hipMemcpyHostToDevice));
         hipLaunchKernelGGL(calculateFitness, dim3(BLOCK_SIZE), dim3(THREADS_PER_BLOCK), 0, 0, d_population, populationSize);
@@ -166,18 +166,25 @@ int main() {
 
         // Check to see if the end condition has been reached
         if(h_population[0].fitness >= targetFitness) {
-            cout << "Ideal combination found!" << endl;
-            cout << "Row by row, the queen should be located at the following columns" << endl;
-            for(int i = 0; i < BOARD_SIZE; i++) {
-                cout << +h_population[0].queensPosition[i] << " ";
-            }
-            cout << endl;
             break;
         }
 
         // Run through reproduction
         reproduction(h_population, populationSize);
     }
+
+    // Print if the ideal combination was found or not
+    if(h_population[0].fitness >= targetFitness) {
+        cout << "Ideal combination found!" << endl;
+    } else {
+        cout << "Could not find ideal combination" << endl;
+    }
+
+    // Print out the location to place the queens
+    for(int i = 0; i < BOARD_SIZE; i++) {
+        cout << +h_population[0].queensPosition[i] << " ";
+    }
+    cout << endl;
 
     // Free unused variables
     free(h_population);
