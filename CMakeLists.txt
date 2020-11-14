@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.16.3)
 
-# Set HIP path, can be manually set through the HIP_PATH environment variable
+# Set the compilter to hipcc
+set(CMAKE_CXX_COMPILER "hipcc")
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+# Find HIP
 if(NOT DEFINED HIP_PATH)
     if(NOT DEFINED ENV{HIP_PATH})
         set(HIP_PATH "/opt/rocm/hip" CACHE PATH "Path to which HIP has been installed")
@@ -10,8 +15,8 @@ if(NOT DEFINED HIP_PATH)
 endif()
 set(CMAKE_MODULE_PATH "${HIP_PATH}/cmake" ${CMAKE_MODULE_PATH})
 
-# Set the compiler to Clang
-set(CMAKE_CXX_COMPILER_ID Clang)
+project(12_cmake)
+
 find_package(HIP QUIET)
 if(HIP_FOUND)
     message(STATUS "Found HIP: " ${HIP_VERSION})
@@ -21,11 +26,17 @@ endif()
 
 project(queens)
 
-set(MY_SOURCE_FILES main.cpp)
-set(MY_TARGET_NAME main)
-set(MY_HIPCC_OPTIONS)
-set(MY_HCC_OPTIONS)
-set(MY_NVCC_OPTIONS)
+# Include 3rd party libraries
+add_subdirectory(
+    libs/CLI11
+)
 
-set_source_files_properties(${MY_SOURCE_FILES} PROPERTIES HIP_SOURCE_PROPERTY_FORMAT 1)
-hip_add_executable(${MY_TARGET_NAME} ${MY_SOURCE_FILES} HIPCC_OPTIONS ${MY_HIPCC_OPTIONS} HCC_OPTIONS ${MY_HCC_OPTIONS} NVCC_OPTIONS ${MY_NVCC_OPTIONS})
+find_package(hip REQUIRED)
+
+add_executable(queens
+    main.cpp
+)
+
+target_link_libraries(queens PRIVATE
+    CLI11::CLI11
+)   

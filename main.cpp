@@ -4,6 +4,9 @@
 #include <time.h>
 #include <bits/stdc++.h>
 #include <hip/hip_runtime.h>
+#include <CLI/App.hpp>
+#include <CLI/Formatter.hpp>
+#include <CLI/Config.hpp>
 
 #define BLOCK_SIZE 512
 #define THREADS_PER_BLOCK 256
@@ -133,13 +136,21 @@ bool compareIndividuals(individual first, individual second) {
     return first.fitness > second.fitness;
 }
 
-int main() {
-    cout << "Being N-Queens Solver" << endl;
+int main(int argc, char **argv) {
+    // Get command line arguments
+    CLI::App app("N-Queens Problem Solver");
 
-    // Size of the population during each generation
     uint16_t populationSize = 1000;
-    // Maximum number of generations to go through before ending
-    uint16_t maxGenerations = 1000;
+    app.add_option("-p, --population", populationSize, "Number of individuals in each generation, defaults to 1000");
+
+    uint16_t maxGenerations = -1;
+    app.add_option("-m, --max", maxGenerations, "Maximum generations to run for, defaults to infinite");
+
+    // Print some starting information
+    cout << "Welcome to the N-Queens Solver" << endl;
+    cout << "Population Size: " << populationSize << " Max Generations: " << maxGenerations;
+
+    CLI11_PARSE(app, argc, argv);
 
     // Initialize randomization
     srand(time(NULL));

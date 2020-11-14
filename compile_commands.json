@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/cbolles/devel/queens_hip/build",
+  "command": "/opt/rocm/bin/hipcc   -I/home/cbolles/devel/queens_hip/libs/CLI11/include  -g   -o CMakeFiles/queens.dir/main.cpp.o -c /home/cbolles/devel/queens_hip/main.cpp",
+  "file": "/home/cbolles/devel/queens_hip/main.cpp"
+}
+]
