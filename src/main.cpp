@@ -14,10 +14,11 @@
 
 using namespace std;
 
-typedef struct individual_s {
+template<uint16_t boardSize>
+struct individual {
     uint16_t fitness;
-    uint8_t queensPosition[BOARD_SIZE];
-} individual;
+    uint8_t queensPosition[boardSize];
+};
 
 const uint16_t targetFitness = ((BOARD_SIZE) * (BOARD_SIZE - 1)) / 2;
 
@@ -39,7 +40,8 @@ const uint16_t targetFitness = ((BOARD_SIZE) * (BOARD_SIZE - 1)) / 2;
  * @param population The representation of the solutions to populate with random values
  * @param populationSize The number of individuals in the population
  */
-void initPopulation(individual *population, uint16_t populationSize) {
+template <uint16_t boardSize>
+void initPopulation(individual<boardSize> *population, uint16_t populationSize) {
     for(uint16_t individualIndex = 0; individualIndex < populationSize; individualIndex++) {
         for(uint8_t rowIndex = 0; rowIndex < BOARD_SIZE; rowIndex++) {
             // A queen can show up anywhere on the row from index 0 up to the size of the board
@@ -59,7 +61,8 @@ void initPopulation(individual *population, uint16_t populationSize) {
  * @param populationSize The number of individuals
  */
 __global__
-void calculateFitness(individual *population, uint16_t populationSize) {
+template<uint16_t boardSize>
+void calculateFitness(individual<boardSize> *population, uint16_t populationSize) {
     // Determine the individual to calculate the fitness for
     size_t individualIndex = hipBlockIdx_x * hipBlockDim_x + hipThreadIdx_x;
     
@@ -102,15 +105,16 @@ void calculateFitness(individual *population, uint16_t populationSize) {
  * @param population The individuals to run reproduction on. Will be replaced with the next generation.
  * @param populationSize The number of individuals in the population.
  */
-void reproduction(individual *population, uint16_t populationSize) {
-    individual nextGen[populationSize];
+template <uint16_t boardSize>
+void reproduction(individual<boardSize> *population, uint16_t populationSize) {
+    individual<boardSize> nextGen[populationSize];
 
     for(int i = 0; i < populationSize; i++) {
         // Use elitist approach of simply having the top 50% reproduce
-        individual firstParent = population[rand() % (populationSize / 2)];
-        individual secondParent = population[rand() % (populationSize / 2)];
+        individual<boardSize> firstParent = population[rand() % (populationSize / 2)];
+        individual<boardSize> secondParent = population[rand() % (populationSize / 2)];
 
-        individual child;
+        individual<boardSize> child;
         // Top half from parent 1, bottom half from parent 2
         int midPoint = BOARD_SIZE / 2;
         for(int j = 0; j < midPoint; j++) {
@@ -126,13 +130,14 @@ void reproduction(individual *population, uint16_t populationSize) {
     }
 
     // Copy over the next generation into the current generation
-    memcpy(population, nextGen, sizeof(individual) * populationSize);
+    memcpy(population, nextGen, sizeof(individual<boardSize>) * populationSize);
 }
 
 /**
  * Used to compare and sort individuals in decenting order based on fitness
  */
-bool compareIndividuals(individual first, individual second) {
+template<uint16_t boardSize>
+bool compareIndividuals(individual<boardSize> first, individual<boardSize> second) {
     return first.fitness > second.fitness;
 }
 
@@ -146,6 +151,9 @@ int main(int argc, char **argv) {
     uint16_t maxGenerations = -1;
     app.add_option("-m, --max", maxGenerations, "Maximum generations to run for, defaults to infinite");
 
+    uint16_t boardSize = 15;
+    app.add_option("-s, --size", boardSize, "Size of the board, default to 15");
+
     // Print some starting information
     cout << "Welcome to the N-Queens Solver" << endl;
     cout << "Population Size: " << populationSize << " Max Generations: " << maxGenerations;
@@ -156,11 +164,11 @@ int main(int argc, char **argv) {
     srand(time(NULL));
 
     // Initialize the popultation with initially random data
-    individual *h_population = static_cast<individual*>(calloc(populationSize, sizeof(individual)));
+    individual<boardSize> *h_population = static_cast<individual*>(calloc(populationSize, sizeof(individual)));
     initPopulation(h_population, populationSize);
 
     // Initialize device variables
-    individual *d_population;
+    individual<boardSize> *d_population;
     CHECK(hipMalloc(&d_population, populationSize * sizeof(individual)));
 
     for(uint16_t populationId = 0; 1; populationId++) {

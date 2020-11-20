@@ -2,6 +2,7 @@
 *.out
 test.cpp
 build/
+compile_commands.json
 
 # IDEs
 .vscode/

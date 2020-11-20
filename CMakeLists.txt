@@ -34,7 +34,7 @@ add_subdirectory(
 find_package(hip REQUIRED)
 
 add_executable(queens
-    main.cpp
+    src/main.cpp
 )
 
 target_link_libraries(queens PRIVATE
