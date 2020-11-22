@@ -4,6 +4,7 @@ cmake_minimum_required(VERSION 3.16.3)
 set(CMAKE_CXX_COMPILER "hipcc")
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_compile_options(-Wall -Wextra -pedantic -ggdb)
 
 # Find HIP
 if(NOT DEFINED HIP_PATH)
